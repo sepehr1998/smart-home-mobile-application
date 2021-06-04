@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -40,7 +41,7 @@ class dashboard extends StatefulWidget {
 }
 
 Future<String> auth() async {
-  var url = Uri.parse('http://192.168.1.19:8080/api/authenticate');
+  var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/authenticate');
   var response = await http.post(url,
       body: jsonEncode({'username': 'user', 'password': 'user'}),
       headers: {"content-type": "application/json"});
@@ -48,7 +49,7 @@ Future<String> auth() async {
 }
 
 Future<bool> trigger(int id, int value1) async {
-  var url = Uri.parse('http://192.168.1.19:8080/api/data');
+  var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data');
   var token = await auth();
   await http.post(url,
           body: jsonEncode({'dataTemplateId': id, 'value': value1}),
@@ -61,7 +62,7 @@ Future<bool> trigger(int id, int value1) async {
 
 Future<String> getTemp() async {
   var url = Uri.parse(
-      'http://192.168.1.19:8080/api/data/4f04325e-ab00-4063-bfbd-5cf2e6e6924a/CELSIUS');
+      'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/4f04325e-ab00-4063-bfbd-5cf2e6e6924a/CELSIUS');
   var value = await auth();
   var response = await http.get(url, headers: {
     HttpHeaders.authorizationHeader: 'Bearer ' + value,
@@ -69,28 +70,48 @@ Future<String> getTemp() async {
   });
   return jsonDecode(response.body)['value'].toString();
 }
-//
-// class Token {
-//   String token;
-//
-//   Token({this.token});
-//
-//   factory Token.fromJson(Map<String, dynamic> json) {
-//     return Token(
-//       token: json[],
-//     );
-//   }
-//
-//
-// }
+
+FutureBuilder<String> getTempText(){
+
+  return FutureBuilder(future: getTemp(),builder: (context, snapshot) {
+    if (snapshot.hasError)
+      print(snapshot.error);
+    return snapshot.hasData
+        ? Text(snapshot.data + "°C",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+        ))
+        : Text("NA°C",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+        ));
+  },);
+
+}
 
 class _dashboardState extends State<dashboard> {
   @override
+  final Duration timerDuration = Duration(seconds: 10,);
   bool selected = true;
+  FutureBuilder lt = getTempText();
+
 
   _dashboardState();
 
   Widget build(BuildContext context) {
+
+    Timer _timer = new Timer.periodic(
+        timerDuration,
+            (Timer timer) =>
+            setState(() {
+             lt = getTempText();
+              return lt;
+            }));
+
+
+
     return Scaffold(
       drawer: Drawer(
           // Add a ListView to the drawer. This ensures the user can scroll
@@ -527,25 +548,26 @@ class _dashboardState extends State<dashboard> {
                                   children: [
                                     Container(
                                       margin:
-                                          EdgeInsets.only(top: 15, left: 150),
-                                      child: FutureBuilder<String>(
-                                        future: getTemp(),
-                                        builder: (context, snapshot) {
-                                          if (snapshot.hasError)
-                                            print(snapshot.error);
-                                          return snapshot.hasData
-                                              ? Text(snapshot.data + "°C",
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 17,
-                                                  ))
-                                              : Text("NA°C",
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 17,
-                                                  ));
-                                        },
-                                      ),
+                                          EdgeInsets.only(top: 15, left: 140),
+                                      // child: FutureBuilder<String>(
+                                      //   future: getTemp(),
+                                      //   builder: (context, snapshot) {
+                                      //     if (snapshot.hasError)
+                                      //       print(snapshot.error);
+                                      //     return snapshot.hasData
+                                      //         ? Text(snapshot.data + "°C",
+                                      //             style: TextStyle(
+                                      //               color: Colors.white,
+                                      //               fontSize: 17,
+                                      //             ))
+                                      //         : Text("NA°C",
+                                      //             style: TextStyle(
+                                      //               color: Colors.white,
+                                      //               fontSize: 17,
+                                      //             ));
+                                      //   },
+                                      // ),
+                                      child: lt
                                     ),
                                   ],
                                 ),
