@@ -39,33 +39,51 @@ class dashboard extends StatefulWidget {
   @override
   _dashboardState createState() => _dashboardState();
 }
+String token;
 
-Future<String> auth() async {
+Future<String> login() async {
   var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/authenticate');
-  var response = await http.post(url,
-      body: jsonEncode({'username': 'user', 'password': 'user'}),
-      headers: {"content-type": "application/json"});
-  return jsonDecode(response.body)['id_token'];
+    var response = await http.post(url,
+        body: jsonEncode({'username': 'user', 'password': 'user'}),
+        headers: {"content-type": "application/json"});
+    return jsonDecode(response.body)['id_token'];
+}
+
+
+Future<String> getToken() async {
+  if (token == null ) {
+    token = await login();
+  }
+    return token;
 }
 
 Future<bool> trigger(int id, int value1) async {
   var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data');
-  var token = await auth();
-  await http.post(url,
+  var token = await getToken();
+  var response = await http.post(url,
           body: jsonEncode({'dataTemplateId': id, 'value': value1}),
           headers: {
             HttpHeaders.authorizationHeader: 'Bearer ' + token,
             "content-type": "application/json"
           });
+  if (response.statusCode == 401) {
+    token = await getToken();
+    await http.post(url,
+        body: jsonEncode({'dataTemplateId': id, 'value': value1}),
+        headers: {
+          HttpHeaders.authorizationHeader: 'Bearer ' + token,
+          "content-type": "application/json"
+        });
+  }
   return value1 == 1 ? true : false;
 }
 
 Future<String> getTemp() async {
   var url = Uri.parse(
       'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/4f04325e-ab00-4063-bfbd-5cf2e6e6924a/CELSIUS');
-  var value = await auth();
+  var token = await getToken();
   var response = await http.get(url, headers: {
-    HttpHeaders.authorizationHeader: 'Bearer ' + value,
+    HttpHeaders.authorizationHeader: 'Bearer ' + token,
     "content-type": "application/json"
   });
   return jsonDecode(response.body)['value'].toString();
