@@ -1,15 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
+import 'dart:math';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/rendering.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:sleek_circular_slider/sleek_circular_slider.dart';
 import 'package:date_time_picker/date_time_picker.dart';
 import 'package:flutter_switch/flutter_switch.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:dotted_line/dotted_line.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
@@ -30,6 +36,7 @@ class _AppState extends State<App> {
         routes: {
           // When navigating to the "/second" route, build the SecondScreen widget.
           '/second': (context) => livingroom(),
+          '/third': (context) => statspage(),
         },
         home: dashboard());
   }
@@ -108,12 +115,121 @@ FutureBuilder<String> getTempText(){
   },);
 
 }
+Future<String> getBill() async {
+  var url = Uri.parse(
+      'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/bill/');
+  var token = await getToken();
+  var response = await http.get(url, headers: {
+    HttpHeaders.authorizationHeader: 'Bearer ' + token,
+    "content-type": "application/json"
+  });
+  return jsonDecode(response.body)['value'].toString();
+}
+
+
+FutureBuilder<String> getBillText(){
+
+  return FutureBuilder(future: getBill(),builder: (context, snapshot) {
+    if (snapshot.hasError)
+      print(snapshot.error);
+    return snapshot.hasData
+        ? Text(snapshot.data,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 25,
+          fontWeight: FontWeight.bold,
+        ))
+        : Text("NA",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 25,
+          fontWeight: FontWeight.bold,
+        ));
+  },);
+
+}
+
+
+
+
+
+
+
+Future<String> getCurrent() async {
+  var url = Uri.parse(
+      'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/4c47e53a-d1ab-11eb-b8bc-0242ac130003/AMPERE');
+  var token = await getToken();
+  var response = await http.get(url, headers: {
+    HttpHeaders.authorizationHeader: 'Bearer ' + token,
+    "content-type": "application/json"
+  });
+  return jsonDecode(response.body)['value'].toString();
+}
+
+FutureBuilder<String> getCurrentText(){
+
+  return FutureBuilder(future: getCurrent(),builder: (context, snapshot) {
+    if (snapshot.hasError)
+      print(snapshot.error);
+    return snapshot.hasData
+        ? Container(
+      margin: EdgeInsets.only(top: 20),
+      height: 100,
+        child:
+        CircularPercentIndicator(
+          radius: 100.0,
+          animation: true,
+          animationDuration: 1200,
+          lineWidth: 5.0,
+          percent: double.parse(snapshot.data)/30.0,
+          center: new Container(
+              child: Text(
+                snapshot.data,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                ),
+              )
+          ),
+          progressColor: Color(0xffcaac76),
+        )
+    )
+        : Container(
+        height: 100,
+      margin: EdgeInsets.only(top: 20),
+      child:
+      CircularPercentIndicator(
+        radius: 100.0,
+        animation: true,
+        animationDuration: 1200,
+        lineWidth: 5.0,
+        percent: 0.0,
+        center: new Container(
+            child: Text(
+              "NA",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+              ),
+            )
+        ),
+        progressColor: Color(0xffcaac76),
+      )
+    );
+  },);
+
+}
+
 
 class _dashboardState extends State<dashboard> {
   @override
   final Duration timerDuration = Duration(seconds: 10,);
   bool selected = true;
+
+
+
   FutureBuilder lt = getTempText();
+  FutureBuilder current = getCurrentText();
 
 
   _dashboardState();
@@ -128,6 +244,13 @@ class _dashboardState extends State<dashboard> {
               return lt;
             }));
 
+    Timer current_timer = new Timer.periodic(
+        timerDuration,
+            (Timer timer) =>
+            setState(() {
+              current = getCurrentText();
+              return current;
+            }));
 
 
     return Scaffold(
@@ -136,8 +259,8 @@ class _dashboardState extends State<dashboard> {
           // through the options in the drawer if there isn't enough vertical
           // space to fit everything.
           child: Container(
-        color: Color(0xff282a2e),
-        child: ListView(
+            color: Color(0xff282a2e),
+            child: ListView(
           // Important: Remove any padding from the ListView.
           padding: EdgeInsets.zero,
           children: <Widget>[
@@ -231,10 +354,10 @@ class _dashboardState extends State<dashboard> {
                     color: Color(0xffcaac76),
                   ),
                   onTap: () {
-                    // Update the state of the app
-                    // ...
-                    // Then close the drawer
-                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => statspage()),
+                    );
                   },
                 ),
                 ListTile(
@@ -252,8 +375,10 @@ class _dashboardState extends State<dashboard> {
                     // Update the state of the app
                     // ...
                     // Then close the drawer
-                    Navigator.pop(context);
-                  },
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => statspage()),
+                    );                  },
                 ),
                 ListTile(
                   title: Text(
@@ -462,24 +587,7 @@ class _dashboardState extends State<dashboard> {
                       ),
                       child: Column(
                         children: [
-                          Container(
-                            decoration: BoxDecoration(),
-                            padding: EdgeInsets.only(top: 20),
-                            child: CircularPercentIndicator(
-                              radius: 100.0,
-                              lineWidth: 5.0,
-                              percent: 0.3,
-                              center: new Container(
-                                  child: Text(
-                                "10",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                ),
-                              )),
-                              progressColor: Color(0xffcaac76),
-                            ),
-                          ),
+                          current,
                           Container(
                             alignment: Alignment.center,
                             width: 150,
@@ -567,24 +675,6 @@ class _dashboardState extends State<dashboard> {
                                     Container(
                                       margin:
                                           EdgeInsets.only(top: 15, left: 140),
-                                      // child: FutureBuilder<String>(
-                                      //   future: getTemp(),
-                                      //   builder: (context, snapshot) {
-                                      //     if (snapshot.hasError)
-                                      //       print(snapshot.error);
-                                      //     return snapshot.hasData
-                                      //         ? Text(snapshot.data + "°C",
-                                      //             style: TextStyle(
-                                      //               color: Colors.white,
-                                      //               fontSize: 17,
-                                      //             ))
-                                      //         : Text("NA°C",
-                                      //             style: TextStyle(
-                                      //               color: Colors.white,
-                                      //               fontSize: 17,
-                                      //             ));
-                                      //   },
-                                      // ),
                                       child: lt
                                     ),
                                   ],
@@ -1765,6 +1855,998 @@ class _livingroomState extends State<livingroom> {
   }
 }
 
+
+class statspage extends StatefulWidget {
+  @override
+  _State createState() => _State();
+  final List<Color> availableColors = [
+    Colors.purpleAccent,
+    Colors.yellow,
+    Colors.lightBlue,
+    Colors.orange,
+    Colors.pink,
+    Colors.redAccent,
+  ];
+
+}
+
+class _State extends State<statspage> {
+  final Duration timerDuration = Duration(seconds: 10,);
+  bool selected = true;
+  @override
+
+
+
+
+
+
+  final Color barBackgroundColor = const Color(0xffcaac76);
+  final Duration animDuration = const Duration(milliseconds: 250);
+
+  int touchedIndex = -1;
+
+  bool isPlaying = false;
+  Widget build(BuildContext context) {
+    Future<String> login() async {
+      var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/authenticate');
+      var response = await http.post(url,
+          body: jsonEncode({'username': 'user', 'password': 'user'}),
+          headers: {"content-type": "application/json"});
+      return jsonDecode(response.body)['id_token'];
+    }
+
+
+    Future<String> getToken() async {
+      if (token == null ) {
+        token = await login();
+      }
+      return token;
+    }
+
+
+    Future<String> getBill() async {
+      var url = Uri.parse(
+          'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/bill/');
+      var token = await getToken();
+      var response = await http.get(url, headers: {
+        HttpHeaders.authorizationHeader: 'Bearer ' + token,
+        "content-type": "application/json"
+      });
+      return jsonDecode(response.body)['value'].toString();
+    }
+
+
+    FutureBuilder<String> getBillText(){
+
+      return FutureBuilder(future: getBill(),builder: (context, snapshot) {
+        if (snapshot.hasError)
+          print(snapshot.error);
+        return snapshot.hasData
+            ? Text(snapshot.data,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+            ))
+            : Text("NA",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+            ));
+      },);
+
+    }
+
+    Future<String> getKwh() async {
+      var url = Uri.parse(
+          'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/kwh/');
+      var token = await getToken();
+      var response = await http.get(url, headers: {
+        HttpHeaders.authorizationHeader: 'Bearer ' + token,
+        "content-type": "application/json"
+      });
+      return jsonDecode(response.body)['value'].toString();
+    }
+
+
+    FutureBuilder<String> getKwhText(){
+
+      return FutureBuilder(future: getKwh(),builder: (context, snapshot) {
+        if (snapshot.hasError)
+          print(snapshot.error);
+        return snapshot.hasData
+            ? Text(snapshot.data,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+            ))
+            : Text("NA",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+            ));
+      },);
+
+    }
+
+
+
+
+
+    FutureBuilder bill = getBillText();
+    FutureBuilder kwh = getKwhText();
+
+    Timer _timer = new Timer.periodic(
+        timerDuration,
+            (Timer timer) =>
+            setState(() {
+              bill = getBillText();
+              return bill;
+            }));
+
+    Timer kwh_timer = new Timer.periodic(
+        timerDuration,
+            (Timer timer) =>
+            setState(() {
+              bill = getKwhText();
+              return kwh;
+            }));
+
+    return Scaffold(
+      drawer: Drawer(
+        // Add a ListView to the drawer. This ensures the user can scroll
+        // through the options in the drawer if there isn't enough vertical
+        // space to fit everything.
+          child: Container(
+            color: Color(0xff282a2e),
+            child: ListView(
+              // Important: Remove any padding from the ListView.
+              padding: EdgeInsets.zero,
+              children: <Widget>[
+                DrawerHeader(
+                  decoration: BoxDecoration(
+                      image: DecorationImage(
+                        colorFilter: new ColorFilter.mode(
+                            Colors.black.withOpacity(0.5), BlendMode.dstATop),
+                        image: AssetImage("assets/outside.jpg"),
+                        fit: BoxFit.cover,
+                      )),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            image: DecorationImage(
+                              image: AssetImage("assets/user.jpg"),
+                              fit: BoxFit.cover,
+                            )),
+                        width: 60,
+                        height: 60,
+                      ),
+                      Container(
+                          margin: EdgeInsets.only(top: 10),
+                          child: Text(
+                            "Sepehr Samadi",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )),
+                      Container(
+                          margin: EdgeInsets.only(top: 5),
+                          child: Text(
+                            "Household",
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          ))
+                    ],
+                  ),
+                ),
+                Container(
+                    child: Column(
+                      children: [
+                        ListTile(
+                          title: Text('Dashboard',
+                              style: TextStyle(
+                                color: Color(0xffffffff),
+                              )),
+                          leading: Icon(
+                            Icons.dashboard,
+                            color: Color(0xffcaac76),
+                          ),
+                          onTap: () {
+                            // Update the state of the app
+                            // ...
+                            // Then close the drawer
+                            Navigator.pop(context);
+                          },
+                        ),
+                        ListTile(
+                          title: Text(
+                            'Living Room',
+                            style: TextStyle(
+                              color: Color(0xffffffff),
+                            ),
+                          ),
+                          leading: Icon(
+                            Icons.weekend_outlined,
+                            color: Color(0xffcaac76),
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => livingroom()),
+                            );
+                          },
+                        ),
+                        ListTile(
+                          title: Text(
+                            'Kitchen',
+                            style: TextStyle(
+                              color: Color(0xffffffff),
+                            ),
+                          ),
+                          leading: Icon(
+                            Icons.kitchen,
+                            color: Color(0xffcaac76),
+                          ),
+                          onTap: () {
+                            // Update the state of the app
+                            // ...
+                            // Then close the drawer
+                            Navigator.pop(context);
+                          },
+                        ),
+                        ListTile(
+                          title: Text(
+                            'Stats',
+                            style: TextStyle(
+                              color: Color(0xffffffff),
+                            ),
+                          ),
+                          leading: Icon(
+                            Icons.bar_chart,
+                            color: Color(0xffcaac76),
+                          ),
+                          onTap: () {
+                            // Update the state of the app
+                            // ...
+                            // Then close the drawer
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => livingroom()),
+                            );
+                          },
+                        ),
+                        ListTile(
+                          title: Text(
+                            'Settings',
+                            style: TextStyle(
+                              color: Color(0xffffffff),
+                            ),
+                          ),
+                          leading: Icon(
+                            Icons.settings,
+                            color: Color(0xffcaac76),
+                          ),
+                          onTap: () {
+                            // Update the state of the app
+                            // ...
+                            // Then close the drawer
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    ))
+              ],
+            ),
+          )),
+      appBar: AppBar(
+        backgroundColor: Color(0xff282a2e),
+        title: Center(
+          child: Row(
+            children: [
+              Container(
+                margin: EdgeInsets.only(right: 10, left: 80),
+                child: Icon(Icons.bar_chart),
+              ),
+              Container(
+                child: Text(
+                  "Stats",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 25,
+                  ),
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.only(right: 10, left: 80),
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    image: DecorationImage(
+                      image: AssetImage("assets/user.jpg"),
+                      fit: BoxFit.cover,
+                    )),
+                width: 35,
+                height: 35,
+              ),
+            ],
+          ),
+        ),
+      ),
+        body: Container(
+        color: Color(0xff282a2e),
+          child: Column(
+            children: [
+              Container(
+                color: Color(0xff282a2e),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                          width: 180,
+                          margin: EdgeInsets.only(top: 20, right: 10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: Color(0xff393a3e),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.5),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                                offset: Offset(0, 2),
+                              )
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                alignment: Alignment.topLeft,
+                                decoration: BoxDecoration(),
+                                padding: EdgeInsets.only(top: 20, left: 10),
+                                 child:
+                                 Column(
+                                   children: [
+                                     Row(
+                                       children: [
+                                         FaIcon(
+                                           FontAwesomeIcons.moneyBillWave,
+                                           color: Color(0xffcaac76),
+                                         ),
+                                         Container(
+                                             padding: EdgeInsets.only(left: 10),
+                                             child: Text(
+                                               "Bill",
+                                               style: TextStyle(
+                                                 color: Colors.white,
+                                                 fontSize: 17,
+                                                 fontStyle: FontStyle.italic,
+                                               ),
+                                             )
+                                         )
+                                       ],
+                                     ),
+                                     Container(
+                                       margin: EdgeInsets.only(top: 25),
+                                       child:
+                                       Row(
+                                         mainAxisAlignment: MainAxisAlignment.center,
+                                         children: [
+                                           Icon(
+                                             Icons.monetization_on_outlined,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             Icons.monetization_on_outlined,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             Icons.monetization_on_outlined,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             Icons.monetization_on_outlined,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             Icons.monetization_on_outlined,
+                                             color: Color(0xffcaac76),
+                                           )
+                                         ],
+                                       ),
+                                     ),
+                                     Row(
+                                       mainAxisAlignment: MainAxisAlignment.center,
+                                       children: [
+                                         Container(
+                                             padding: EdgeInsets.only(top: 25),
+                                             child: bill
+                                         )
+                                       ],
+                                     ),
+                                     Row(
+                                       mainAxisAlignment: MainAxisAlignment.end,
+                                       children: [
+                                         Container(
+                                             padding: EdgeInsets.only(top: 25, right: 10, bottom: 20),
+                                             child: Text(
+                                               "IRR",
+                                               style: TextStyle(
+                                                 color: Color(0xffcaac76),
+                                                 fontSize: 23,
+                                                 fontWeight: FontWeight.bold,
+                                               ),
+                                             )
+                                         )
+                                       ],
+                                     ),
+                                   ],
+                                 )
+
+                                ),
+
+                            ],
+                          )
+                      ),
+                      Container(
+                          width: 180,
+                          margin: EdgeInsets.only(top: 20, left: 10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: Color(0xff393a3e),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.5),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                                offset: Offset(0, 2),
+                              )
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                  alignment: Alignment.topLeft,
+                                  decoration: BoxDecoration(),
+                                  padding: EdgeInsets.only(top: 20, left: 10),
+                                  child:
+                                  Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          FaIcon(
+                                            FontAwesomeIcons.tachometerAlt,
+                                            color: Color(0xffcaac76),
+                                          ),
+                                          Container(
+                                              padding: EdgeInsets.only(left: 10),
+                                              child: Text(
+                                                "Consumption",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 17,
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                              )
+                                          )
+                                        ],
+                                      ),
+                                     Container(
+                                       margin: EdgeInsets.only(top: 25),
+                                       child:
+                                       Row(
+                                         mainAxisAlignment: MainAxisAlignment.center,
+                                         children: [
+                                           Icon(
+                                             FontAwesomeIcons.bolt,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             FontAwesomeIcons.bolt,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             FontAwesomeIcons.bolt,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             FontAwesomeIcons.bolt,
+                                             color: Color(0xffcaac76),
+                                           ),
+                                           Icon(
+                                             FontAwesomeIcons.bolt,
+                                             color: Color(0xffcaac76),
+                                           )
+                                         ],
+                                       ),
+                                     ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                              padding: EdgeInsets.only(top: 25),
+                                              child: kwh,
+                                          )
+                                        ],
+                                      ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                              padding: EdgeInsets.only(top: 25, right: 10, bottom: 20),
+                                              child: Text(
+                                                "KWH",
+                                                style: TextStyle(
+                                                  color: Color(0xffcaac76),
+                                                  fontSize: 23,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              )
+                                          )
+                                        ],
+                                      ),
+                                    ],
+                                  )
+
+                              ),
+
+                            ],
+                          )
+                      ),
+                    ],
+                  ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(top: 15),
+                    height: 250,
+                    child:
+                      AspectRatio(
+                        aspectRatio: 1.6,
+                        child:
+                        Card(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          color: const Color(0xff393a3e),
+                          child: Stack(
+                            children: <Widget>[
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: <Widget>[
+                                    Text(
+                                      'Power Consumption',
+                                      style: TextStyle(
+                                          color: const Color(0xffffffff), fontSize: 20, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(
+                                      height: 4,
+                                    ),
+                                    Text(
+                                      'This week history',
+                                      style: TextStyle(
+                                          color: const Color(0xffffffff), fontSize: 14, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(
+                                      height: 38,
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                        child: BarChart(
+                                          isPlaying ? randomData() : mainBarData(),
+                                          swapAnimationDuration: animDuration,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 12,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                  )
+                ],
+              ),
+              Row(
+                children: [
+                      Container(
+                          margin: EdgeInsets.only(top: 10, left: 20),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: Color(0xff393a3e),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.5),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                                offset: Offset(0, 2),
+                              )
+                            ],
+                          ),
+                        child:
+                          Row(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: EdgeInsets.only(top: 10, left: 10),
+                                    child: Text("Base Costs",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),),
+                                  ),
+                                  Container(
+                                    margin: EdgeInsets.only(top: 10, left: 10),
+                                    child: Text("Without Penalties",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),),
+                                  ),
+                                    Container(
+                                      margin: EdgeInsets.only(top: 20, left: 50),
+                                      child:
+                                      CircularPercentIndicator(
+                                        radius: 50.0,
+                                        lineWidth: 5.0,
+                                        percent: 1,
+                                        center: new Container(
+                                            child: Text(
+                                              "10",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20,
+                                              ),
+                                            )),
+                                        progressColor: Color(0xffcaac76),
+                                      ),
+                                    ),
+                                  Container(
+                                    margin: EdgeInsets.only(top: 10, left: 55, bottom: 10),
+                                    child: Text("IRR",
+                                      style: TextStyle(
+                                        color: Color(0xffcaac76),
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),),
+                                  ),
+                                ],
+                              ),
+                                Container(
+                                  height: 200,
+                                  margin: EdgeInsets.only(left: 45, right: 45, top: 5),
+                                  child:
+                                  DottedLine(
+                                    dashLength: 10,
+                                    dashGapLength: 10,
+                                    lineThickness: 2,
+                                    dashRadius: 16,
+                                    direction: Axis.vertical,
+                                    dashColor: Color(0xffffffff),
+                                  ),
+                                ),
+
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    margin: EdgeInsets.only(top: 10, right: 10),
+                                    child: Text("Additional Costs",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),),
+                                  ),
+                                  Container(
+                                    margin: EdgeInsets.only(top: 10, right: 10),
+                                    child: Text("Peak Time Usage Penalties",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),),
+                                  ),
+                                  Container(
+                                    margin: EdgeInsets.only(top: 10, right: 50),
+                                    child:
+                                    CircularPercentIndicator(
+                                      radius: 50.0,
+                                      lineWidth: 5.0,
+                                      percent: 1,
+                                      center: new Container(
+                                          child: Text(
+                                            "5",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 20,
+                                            ),
+                                          )),
+                                      progressColor: Color(0xffcaac76),
+                                    ),
+                                  ),
+                                  Container(
+                                    margin: EdgeInsets.only(top: 10, right: 55, bottom: 10),
+                                    child: Text("IRR",
+                                      style: TextStyle(
+                                        color: Color(0xffcaac76),
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),),
+                                  ),
+                                ],
+                              ),
+
+
+                            ]
+
+                          )
+                      ),
+                ],
+              )
+            ],
+          ),
+    )
+    );
+  }
+
+
+
+  BarChartGroupData makeGroupData(
+      int x,
+      double y, {
+        bool isTouched = false,
+        Color barColor = Colors.white,
+        double width = 22,
+        List<int> showTooltips = const [],
+      }) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          y: isTouched ? y + 1 : y,
+          colors: isTouched ? [Colors.yellow] : [barColor],
+          width: width,
+          backDrawRodData: BackgroundBarChartRodData(
+            show: true,
+            y: 20,
+            colors: [barBackgroundColor],
+          ),
+        ),
+      ],
+      showingTooltipIndicators: showTooltips,
+    );
+  }
+
+  List<BarChartGroupData> showingGroups() => List.generate(7, (i) {
+    switch (i) {
+      case 0:
+        return makeGroupData(0, 5, isTouched: i == touchedIndex);
+      case 1:
+        return makeGroupData(1, 6.5, isTouched: i == touchedIndex);
+      case 2:
+        return makeGroupData(2, 5, isTouched: i == touchedIndex);
+      case 3:
+        return makeGroupData(3, 7.5, isTouched: i == touchedIndex);
+      case 4:
+        return makeGroupData(4, 9, isTouched: i == touchedIndex);
+      case 5:
+        return makeGroupData(5, 11.5, isTouched: i == touchedIndex);
+      case 6:
+        return makeGroupData(6, 6.5, isTouched: i == touchedIndex);
+      default:
+        return throw Error();
+    }
+  });
+
+
+
+  BarChartData mainBarData() {
+    return BarChartData(
+      barTouchData: BarTouchData(
+        touchTooltipData: BarTouchTooltipData(
+            tooltipBgColor: Colors.blueGrey,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              String weekDay;
+              switch (group.x.toInt()) {
+                case 0:
+                  weekDay = 'Monday';
+                  break;
+                case 1:
+                  weekDay = 'Tuesday';
+                  break;
+                case 2:
+                  weekDay = 'Wednesday';
+                  break;
+                case 3:
+                  weekDay = 'Thursday';
+                  break;
+                case 4:
+                  weekDay = 'Friday';
+                  break;
+                case 5:
+                  weekDay = 'Saturday';
+                  break;
+                case 6:
+                  weekDay = 'Sunday';
+                  break;
+                default:
+                  throw Error();
+              }
+              return BarTooltipItem(
+                weekDay + '\n',
+                TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+                children: <TextSpan>[
+                  TextSpan(
+                    text: (rod.y - 1).toString(),
+                    style: TextStyle(
+                      color: Colors.yellow,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              );
+            }),
+        touchCallback: (barTouchResponse) {
+          setState(() {
+            if (barTouchResponse.spot != null &&
+                barTouchResponse.touchInput is! PointerUpEvent &&
+                barTouchResponse.touchInput is! PointerExitEvent) {
+              touchedIndex = barTouchResponse.spot.touchedBarGroupIndex;
+            } else {
+              touchedIndex = -1;
+            }
+          });
+        },
+      ),
+      titlesData: FlTitlesData(
+        show: true,
+        bottomTitles: SideTitles(
+          showTitles: true,
+          getTextStyles: (value) =>
+          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+          margin: 16,
+          getTitles: (double value) {
+            switch (value.toInt()) {
+              case 0:
+                return 'M';
+              case 1:
+                return 'T';
+              case 2:
+                return 'W';
+              case 3:
+                return 'T';
+              case 4:
+                return 'F';
+              case 5:
+                return 'S';
+              case 6:
+                return 'S';
+              default:
+                return '';
+            }
+          },
+        ),
+        leftTitles: SideTitles(
+          showTitles: false,
+        ),
+      ),
+      borderData: FlBorderData(
+        show: false,
+      ),
+      barGroups: showingGroups(),
+    );
+  }
+
+  BarChartData randomData() {
+    return BarChartData(
+      barTouchData: BarTouchData(
+        enabled: false,
+      ),
+      titlesData: FlTitlesData(
+        show: true,
+        bottomTitles: SideTitles(
+          showTitles: true,
+          getTextStyles: (value) =>
+          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+          margin: 16,
+          getTitles: (double value) {
+            switch (value.toInt()) {
+              case 0:
+                return 'M';
+              case 1:
+                return 'T';
+              case 2:
+                return 'W';
+              case 3:
+                return 'T';
+              case 4:
+                return 'F';
+              case 5:
+                return 'S';
+              case 6:
+                return 'S';
+              default:
+                return '';
+            }
+          },
+        ),
+        leftTitles: SideTitles(
+          showTitles: false,
+        ),
+      ),
+      borderData: FlBorderData(
+        show: false,
+      ),
+      barGroups: List.generate(7, (i) {
+        switch (i) {
+          case 0:
+            return makeGroupData(0, Random().nextInt(15).toDouble() + 6,
+                barColor: widget.availableColors[Random().nextInt(widget.availableColors.length)]);
+          case 1:
+            return makeGroupData(1, Random().nextInt(15).toDouble() + 6,
+                barColor: widget.availableColors[Random().nextInt(widget.availableColors.length)]);
+          case 2:
+            return makeGroupData(2, Random().nextInt(15).toDouble() + 6,
+                barColor: widget.availableColors[Random().nextInt(widget.availableColors.length)]);
+          case 3:
+            return makeGroupData(3, Random().nextInt(15).toDouble() + 6,
+                barColor: widget.availableColors[Random().nextInt(widget.availableColors.length)]);
+          case 4:
+            return makeGroupData(4, Random().nextInt(15).toDouble() + 6,
+                barColor: widget.availableColors[Random().nextInt(widget.availableColors.length)]);
+          case 5:
+            return makeGroupData(5, Random().nextInt(15).toDouble() + 6,
+                barColor: widget.availableColors[Random().nextInt(widget.availableColors.length)]);
+          case 6:
+            return makeGroupData(6, Random().nextInt(15).toDouble() + 6,
+                barColor: widget.availableColors[Random().nextInt(widget.availableColors.length)]);
+          default:
+            return throw Error();
+        }
+      }),
+    );
+  }
+
+  Future<dynamic> refreshState() async {
+    setState(() {});
+    await Future<dynamic>.delayed(animDuration + const Duration(milliseconds: 50));
+    if (isPlaying) {
+      await refreshState();
+    }
+  }
+
+
+
+
+
+
+
+
+
+}
+
+
 class CircleTabIndicator extends Decoration {
   final BoxPainter _painter;
 
@@ -1796,3 +2878,5 @@ String percentageModifier(double value) {
   final roundedValue = value.ceil().toInt().toString();
   return '$roundedValue';
 }
+
+

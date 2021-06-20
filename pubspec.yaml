@@ -35,6 +35,10 @@ dependencies:
   date_time_picker: "^2.0.0"
   flutter_switch: ^0.3.1
   http: ^0.13.3
+  flutter_spinkit: "^4.1.2"
+  font_awesome_flutter: ^9.1.0
+  fl_chart: ^0.36.2
+  dotted_line: ^3.0.0
 
 dev_dependencies:
   flutter_test:
