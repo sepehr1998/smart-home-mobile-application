@@ -17,6 +17,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:dotted_line/dotted_line.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(App());
@@ -49,7 +50,7 @@ class dashboard extends StatefulWidget {
 String token;
 
 Future<String> login() async {
-  var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/authenticate');
+  var url = Uri.parse('http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/authenticate');
     var response = await http.post(url,
         body: jsonEncode({'username': 'user', 'password': 'user'}),
         headers: {"content-type": "application/json"});
@@ -63,9 +64,8 @@ Future<String> getToken() async {
   }
     return token;
 }
-
 Future<bool> trigger(int id, int value1) async {
-  var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data');
+  var url = Uri.parse('http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/data');
   var token = await getToken();
   var response = await http.post(url,
           body: jsonEncode({'dataTemplateId': id, 'value': value1}),
@@ -87,7 +87,7 @@ Future<bool> trigger(int id, int value1) async {
 
 Future<String> getTemp() async {
   var url = Uri.parse(
-      'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/4f04325e-ab00-4063-bfbd-5cf2e6e6924a/CELSIUS');
+      'http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/data/4f04325e-ab00-4063-bfbd-5cf2e6e6924a/CELSIUS');
   var token = await getToken();
   var response = await http.get(url, headers: {
     HttpHeaders.authorizationHeader: 'Bearer ' + token,
@@ -117,7 +117,7 @@ FutureBuilder<String> getTempText(){
 }
 Future<String> getBill() async {
   var url = Uri.parse(
-      'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/bill/');
+      'http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/data/bill/');
   var token = await getToken();
   var response = await http.get(url, headers: {
     HttpHeaders.authorizationHeader: 'Bearer ' + token,
@@ -157,7 +157,7 @@ FutureBuilder<String> getBillText(){
 
 Future<String> getCurrent() async {
   var url = Uri.parse(
-      'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/4c47e53a-d1ab-11eb-b8bc-0242ac130003/AMPERE');
+      'http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/data/4c47e53a-d1ab-11eb-b8bc-0242ac130003/AMPERE');
   var token = await getToken();
   var response = await http.get(url, headers: {
     HttpHeaders.authorizationHeader: 'Bearer ' + token,
@@ -852,6 +852,11 @@ class _livingroomState extends State<livingroom> {
   bool snow = false;
   bool humid = false;
   bool wind = false;
+  bool pump = false;
+  bool ac_on = false;
+  bool fast = false;
+  Timer ac_timer;
+
   Image lampon = Image.asset("assets/lighton.png");
   Image lampoff = Image.asset("assets/lightoff.png");
 
@@ -1070,7 +1075,10 @@ class _livingroomState extends State<livingroom> {
                 ),
                 Container(
                   margin: EdgeInsets.only(left: 70),
+                  child: GestureDetector(
+                    onTap: () => launch('http://home.lan:8081'),
                   child: Icon(Icons.photo_camera_front),
+                  ),
                   width: 35,
                   height: 35,
                 ),
@@ -1136,7 +1144,25 @@ class _livingroomState extends State<livingroom> {
                                       ),
                                       borderRadius:
                                           BorderRadius.circular(2000)),
-                                  child: Icon(Icons.power_settings_new),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        if (snow == true && valueHolder == 0) {
+                                          trigger(79, pump ? 0 : 1);
+                                          pump = !pump;
+                                          ac_timer = new Timer(const Duration(milliseconds: 1000), () {
+                                            setState(() {
+                                              trigger(80, ac_on ? 0 : 1);
+                                              ac_on = !ac_on;
+                                              fast = false;
+                                            });
+                                          });
+
+                                        }
+                                      });
+                                    },
+                                    child: Icon(Icons.power_settings_new),
+                                  ),
                                 ),
                                 Column(
                                   children: [
@@ -1318,6 +1344,10 @@ class _livingroomState extends State<livingroom> {
                                                           valueHolder =
                                                               newValue.round();
                                                         });
+                                                        if (valueHolder == 0)
+                                                          trigger(81, 0);
+                                                        else if (valueHolder == 50)
+                                                          trigger(81, 1);
                                                       },
                                                       semanticFormatterCallback:
                                                           (double newValue) {
@@ -1607,7 +1637,7 @@ class _livingroomState extends State<livingroom> {
                                               child: GestureDetector(
                                                 onTap: () {
                                                   setState(() {
-                                                    trigger(75, lamp1 ? 0 : 1);
+                                                    trigger(77, lamp1 ? 0 : 1);
                                                     lamp1 = !lamp1;
                                                   });
                                                 },
@@ -1667,8 +1697,8 @@ class _livingroomState extends State<livingroom> {
                                               child: GestureDetector(
                                                 onTap: () {
                                                   setState(() {
-                                                    lamp3 = !lamp3;
-                                                  });
+                                                    trigger(82, lamp3 ? 0 : 1);
+                                                    lamp3 = !lamp3;                                                  });
                                                 },
                                                 child: lamp3 ? lampon : lampoff,
                                               ),
@@ -1754,8 +1784,8 @@ class _livingroomState extends State<livingroom> {
                                               child: GestureDetector(
                                                 onTap: () {
                                                   setState(() {
-                                                    lamp2 = !lamp2;
-                                                  });
+                                                    trigger(78, lamp2 ? 0 : 1);
+                                                    lamp2 = !lamp2;                                                  });
                                                 },
                                                 child: lamp2 ? lampon : lampoff,
                                               ),
@@ -1888,7 +1918,7 @@ class _State extends State<statspage> {
   bool isPlaying = false;
   Widget build(BuildContext context) {
     Future<String> login() async {
-      var url = Uri.parse('http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/authenticate');
+      var url = Uri.parse('http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/authenticate');
       var response = await http.post(url,
           body: jsonEncode({'username': 'user', 'password': 'user'}),
           headers: {"content-type": "application/json"});
@@ -1906,7 +1936,7 @@ class _State extends State<statspage> {
 
     Future<String> getBill() async {
       var url = Uri.parse(
-          'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/bill/');
+          'http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/data/bill/');
       var token = await getToken();
       var response = await http.get(url, headers: {
         HttpHeaders.authorizationHeader: 'Bearer ' + token,
@@ -1940,7 +1970,7 @@ class _State extends State<statspage> {
 
     Future<String> getKwh() async {
       var url = Uri.parse(
-          'http://home-server-mr-os7798-dev.apps.sandbox.x8i5.p1.openshiftapps.com/api/data/kwh/');
+          'http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/data/kwh/');
       var token = await getToken();
       var response = await http.get(url, headers: {
         HttpHeaders.authorizationHeader: 'Bearer ' + token,
@@ -1973,11 +2003,87 @@ class _State extends State<statspage> {
     }
 
 
+    Future<String> getKwhPrice() async {
+      var url = Uri.parse(
+          'http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/kwh/price/');
+      var token = await getToken();
+      var response = await http.get(url, headers: {
+        HttpHeaders.authorizationHeader: 'Bearer ' + token,
+        "content-type": "application/json"
+      });
+      return jsonDecode(response.body)['value'].toString();
+    }
+
+
+    FutureBuilder<String> getKwhPriceText(){
+
+      return FutureBuilder(future: getKwhPrice(),builder: (context, snapshot) {
+        if (snapshot.hasError)
+          print(snapshot.error);
+        return snapshot.hasData
+            ? Text(snapshot.data,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ))
+            : Text("NA",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ));
+      },);
+
+    }
+
+
+    Future<String> getPenaltyPrice() async {
+      var url = Uri.parse(
+          'http://smart-home-server-mr-os7798-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com/api/peak/price/');
+      var token = await getToken();
+      var response = await http.get(url, headers: {
+        HttpHeaders.authorizationHeader: 'Bearer ' + token,
+        "content-type": "application/json"
+      });
+      return jsonDecode(response.body)['value'].toString();
+    }
+
+
+    FutureBuilder<String> getPenaltyPriceText(){
+
+      return FutureBuilder(future: getPenaltyPrice(),builder: (context, snapshot) {
+        if (snapshot.hasError)
+          print(snapshot.error);
+        return snapshot.hasData
+            ? Text(snapshot.data,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ))
+            : Text("NA",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ));
+      },);
+
+    }
+
+
+
+
+
+
 
 
 
     FutureBuilder bill = getBillText();
     FutureBuilder kwh = getKwhText();
+    FutureBuilder kwh_price = getKwhPriceText();
+    FutureBuilder penalty_price = getPenaltyPriceText();
 
     Timer _timer = new Timer.periodic(
         timerDuration,
@@ -1992,6 +2098,25 @@ class _State extends State<statspage> {
             (Timer timer) =>
             setState(() {
               bill = getKwhText();
+              return kwh;
+            }));
+
+
+    Timer kwh_price_timer = new Timer.periodic(
+        timerDuration,
+            (Timer timer) =>
+            setState(() {
+              bill = getKwhPriceText();
+              return kwh;
+            }));
+
+
+
+    Timer penalty_price_timer = new Timer.periodic(
+        timerDuration,
+            (Timer timer) =>
+            setState(() {
+              bill = getPenaltyPriceText();
               return kwh;
             }));
 
@@ -2504,17 +2629,12 @@ class _State extends State<statspage> {
                                       margin: EdgeInsets.only(top: 20, left: 50),
                                       child:
                                       CircularPercentIndicator(
-                                        radius: 50.0,
+                                        radius: 80.0,
                                         lineWidth: 5.0,
                                         percent: 1,
                                         center: new Container(
-                                            child: Text(
-                                              "10",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 20,
-                                              ),
-                                            )),
+                                            child: kwh_price,
+                                        ),
                                         progressColor: Color(0xffcaac76),
                                       ),
                                     ),
@@ -2531,7 +2651,7 @@ class _State extends State<statspage> {
                               ),
                                 Container(
                                   height: 200,
-                                  margin: EdgeInsets.only(left: 45, right: 45, top: 5),
+                                  margin: EdgeInsets.only(left: 40, right: 40, top: 5),
                                   child:
                                   DottedLine(
                                     dashLength: 10,
@@ -2542,7 +2662,7 @@ class _State extends State<statspage> {
                                     dashColor: Color(0xffffffff),
                                   ),
                                 ),
-
+                              
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
@@ -2566,17 +2686,12 @@ class _State extends State<statspage> {
                                     margin: EdgeInsets.only(top: 10, right: 50),
                                     child:
                                     CircularPercentIndicator(
-                                      radius: 50.0,
+                                      radius: 80.0,
                                       lineWidth: 5.0,
                                       percent: 1,
                                       center: new Container(
-                                          child: Text(
-                                            "5",
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 20,
-                                            ),
-                                          )),
+                                          child: penalty_price,
+                                      ),
                                       progressColor: Color(0xffcaac76),
                                     ),
                                   ),
@@ -2878,5 +2993,3 @@ String percentageModifier(double value) {
   final roundedValue = value.ceil().toInt().toString();
   return '$roundedValue';
 }
-
-
